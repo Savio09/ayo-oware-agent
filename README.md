@@ -1,0 +1,117 @@
+# Ayo-CS152
+
+An AI opponent for **Ayo** — the Yoruba mancala game from Nigeria —
+built for Minerva CS152 (Harnessing AI Algorithms).
+
+The project implements minimax (alpha-beta + iterative deepening) and
+tabular Q-learning, with Connect Four as a validation baseline for the
+minimax code.
+
+---
+
+## How to run
+
+```bash
+# Create / activate the venv (Python 3.13+)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Tests
+pytest tests/ -q
+```
+
+A playable CLI arrives with Phase 2; agents and the evaluation harness
+land in later phases.
+
+---
+
+## Project layout
+
+```
+src/
+├── games/      # rules engines (Ayo, Connect Four) behind a shared Game interface
+├── agents/     # random, human (CLI), minimax, Q-learning  [coming]
+├── heuristics/ # Ayo evaluation functions (H1..H4)          [coming]
+├── cli.py      # human-vs-agent game runner                 [coming]
+└── evaluate.py # tournament harness + metrics               [coming]
+tests/          # pytest rule-correctness + agent tests
+```
+
+---
+
+## Rule choices (why the code looks the way it does)
+
+Ayoayo has several regional variants. The choices below were made by
+comparing Wikipedia's Ayoayo page and Mancala Fandom against Declan's
+course spec, then picking one consistent ruleset. Deviating from tradition
+in any place is called out explicitly.
+
+- **Board:** 12 play pits in 2 rows of 6, plus **two stores** (one per
+  player).
+  - Traditional Ayoayo keeps captured seeds off-board. This project uses
+    a Kalah-style store abstraction *purely as accounting*: captured
+    seeds live at indices 6 (P0) and 13 (P1) of a flat 14-tuple. Stores
+    are never sown into, and they do not function as "bonus pits" like
+    in Kalah — a seed never ends a move in a store. This is a code
+    convenience that makes hashing and scoring uniform across games; it
+    does not change the game's strategic surface.
+- **Initial setup:** 4 seeds per pit (48 total); stores empty.
+- **Sowing:** counterclockwise, one seed per pit. Stores are skipped.
+- **Skip-origin:** the pit the move started from is skipped **for the
+  current relay lap only**. A later relay lap may sow seeds back into
+  the original pit.
+- **Relay (multi-lap) sowing:** if the last seed lands in a non-empty
+  pit, pick up all seeds there and continue sowing from that pit. Sowing
+  stops only when the last seed lands in an **empty** pit.
+- **Capture:** if sowing stops in an empty pit on the mover's own side
+  AND the opposite pit contains seeds, the mover captures the opposite
+  pit's seeds **plus the final seed** into their store.
+- **Feeding:** if the opponent's side is empty, the mover must play a
+  move that leaves at least one seed on the opponent's side *after*
+  captures resolve. If no such move exists, the game ends and the mover
+  keeps their own remaining seeds.
+- **Standard endgame:** if the mover has no seeds on their side at the
+  start of their turn, the game ends and the opponent collects all
+  remaining board seeds.
+- **Grand slam:** emptying the opponent's side via capture is allowed,
+  and the capture stands. The feeding rule then applies on the next turn.
+- **Ply-limit safety valve (non-traditional):** if the game reaches 200
+  plies without terminating, it ends. Seeds still on the board are
+  ignored; the winner is decided by store counts, with ties = draws.
+  This is a computational safeguard, not a traditional rule.
+
+The full rules engine and its test suite live in
+`src/games/ayo.py` and `tests/test_ayo_rules.py`.
+
+---
+
+## Design notes
+
+- **Immutable states.** `AyoState` is a frozen `dataclass`, so states are
+  hashable and safe to use as dictionary keys (needed for Q-learning
+  tables and minimax transposition tables).
+- **`q_key()` omits ply.** Q-learning should treat the same board
+  position identically regardless of how many moves were played to
+  reach it, so `AyoState.q_key()` drops the ply counter.
+- **Utility vs. heuristics.** `Game.utility` returns only pure terminal
+  values (±1 / 0). Heuristic (non-terminal) evaluation lives in
+  `src/heuristics/`, to keep the rules engine free of game-playing bias.
+- **Awari paper (`awari.pdf`).** Romein & Bal (2002) is cited for
+  algorithmic and historical context only. Awari is a *different* game;
+  its rules were not used as a source for Ayo.
+
+---
+
+## Status
+
+| Phase | Description                                  | Status         |
+|-------|----------------------------------------------|----------------|
+| 1     | Ayo rules engine + tests                     | Done (24/24)   |
+| 2     | CLI + random agent                           | In progress    |
+| 3     | Connect Four + minimax (validation baseline) | Pending        |
+| 4     | Minimax for Ayo with heuristics H1–H4        | Pending        |
+| 5     | Tabular Q-learning via self-play             | Pending        |
+| 6     | Evaluation harness                           | Pending        |
+
+See `progress.md` for detailed hand-off notes between sessions.
