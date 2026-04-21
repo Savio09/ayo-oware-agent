@@ -48,9 +48,15 @@ def play_game(
     while not game.is_terminal(state):
         mover = state.to_move
         move = agents[mover].select_move(game, state)
+        legal = game.legal_moves(state)
+        if move not in legal:
+            raise ValueError(
+                f"Agent for P{mover} returned illegal move {move}; "
+                f"legal moves are {legal}."
+            )
         if verbose:
             label = AyoHumanAgent._pit_to_label(mover, move)
-            print(f"\n  -> P{mover} plays pit {label}\n")
+            print(f"\n  -> P{mover} plays pit {label} (label)\n")
         state = game.apply_move(state, move)
         if verbose:
             print(game.render(state))

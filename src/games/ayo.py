@@ -170,6 +170,12 @@ class Ayo(Game[AyoState, int]):
             raise ValueError(f"Pit {move} is empty.")
         if state.ply >= self.PLY_LIMIT:
             raise ValueError("Ply limit reached; no moves are legal.")
+        legal = self.legal_moves(state)
+        if move not in legal:
+            raise ValueError(
+                f"Move {move} is not legal in this state; legal moves are "
+                f"{legal}."
+            )
 
     def _apply_move_raw(self, state: AyoState, move: int) -> AyoState:
         """Sow + capture + flip turn + increment ply. Does NOT finalize."""

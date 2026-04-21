@@ -19,10 +19,16 @@ pip install -r requirements.txt
 
 # Tests
 pytest tests/ -q
+
+# Play human (P0) vs. random (P1)
+python -m src.cli
+
+# Run a seeded random-vs-random game
+python -m src.cli --p0 random --p1 random --seed 42
 ```
 
-A playable CLI arrives with Phase 2; agents and the evaluation harness
-land in later phases.
+The CLI currently supports human and random agents. Minimax, Q-learning, and
+the evaluation harness land in later phases.
 
 ---
 
@@ -30,10 +36,10 @@ land in later phases.
 
 ```
 src/
-├── games/      # rules engines (Ayo, Connect Four) behind a shared Game interface
-├── agents/     # random, human (CLI), minimax, Q-learning  [coming]
+├── games/      # rules engines (Ayo done; Connect Four coming)
+├── agents/     # random and human done; minimax, Q-learning coming
 ├── heuristics/ # Ayo evaluation functions (H1..H4)          [coming]
-├── cli.py      # human-vs-agent game runner                 [coming]
+├── cli.py      # human-vs-agent game runner
 └── evaluate.py # tournament harness + metrics               [coming]
 tests/          # pytest rule-correctness + agent tests
 ```
@@ -107,8 +113,8 @@ The full rules engine and its test suite live in
 
 | Phase | Description                                  | Status         |
 |-------|----------------------------------------------|----------------|
-| 1     | Ayo rules engine + tests                     | Done (24/24)   |
-| 2     | CLI + random agent                           | In progress    |
+| 1     | Ayo rules engine + tests                     | Done (26/26)   |
+| 2     | CLI + random agent                           | Done (14/14)   |
 | 3     | Connect Four + minimax (validation baseline) | Pending        |
 | 4     | Minimax for Ayo with heuristics H1–H4        | Pending        |
 | 5     | Tabular Q-learning via self-play             | Pending        |
