@@ -259,6 +259,16 @@ def test_feeding_rule_restricts_legal_moves_to_delivering_moves(game):
     assert game.legal_moves(s) == [5]
 
 
+def test_apply_move_rejects_feeding_illegal_move(game):
+    # `apply_move` must enforce the same legality contract as `legal_moves`,
+    # because search agents will generate moves from one API and apply via the other.
+    pits = [2, 0, 0, 0, 0, 2] + [0] + [0] * 6 + [0]
+    s = make_state(pits, to_move=0)
+    assert game.legal_moves(s) == [5]
+    with pytest.raises(ValueError, match="not legal"):
+        game.apply_move(s, 0)
+
+
 def test_no_delivering_move_makes_constructed_state_terminal(game):
     # P1 side empty. P0 has 2 seeds in pit 0; sowing stays on P0 side so
     # no move delivers to P1 -> legal_moves is empty -> terminal.
@@ -346,3 +356,11 @@ def test_render_produces_nonempty_multiline_string(game):
     assert isinstance(out, str)
     assert "P0" in out and "P1" in out
     assert out.count("\n") >= 4
+
+
+def test_render_shows_player_relative_labels_and_display_order(game):
+    s = make_state(list(range(14)), to_move=1, ply=12)
+    out = game.render(s)
+    assert "       1    2    3    4    5    6 " in out
+    assert "  P1:  [12] [11] [10] [ 9] [ 8] [ 7]" in out
+    assert "  P0:  [ 0] [ 1] [ 2] [ 3] [ 4] [ 5]" in out

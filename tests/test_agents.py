@@ -15,6 +15,7 @@ from typing import Iterator, List
 
 import pytest
 
+import src.cli as cli
 from src.agents.human import AyoHumanAgent
 from src.agents.random_agent import RandomAgent
 from src.cli import play_game
@@ -152,6 +153,13 @@ def test_human_agent_translates_for_p1(game):
     assert agent.select_move(game, s) == 12
 
 
+def test_human_agent_raises_on_terminal_state(game):
+    pits = tuple([1] * 6 + [10] + [1] * 6 + [5])
+    s = AyoState(pits=pits, to_move=0, ply=Ayo.PLY_LIMIT)
+    with pytest.raises(ValueError, match="terminal state"):
+        AyoHumanAgent(input_fn=lambda _: "1").select_move(game, s)
+
+
 # ---------------------------------------------------------------------------
 # play_game smoke test
 # ---------------------------------------------------------------------------
@@ -172,4 +180,37 @@ def test_play_game_verbose_prints_board_and_result(game, capsys):
     play_game(game, agents, verbose=True)
     out = capsys.readouterr().out
     assert "P0 store" in out and "P1 store" in out
+    assert "-> P" in out and "(label)" in out
     assert "Final score" in out
+    assert "Result:" in out
+
+
+def test_play_game_rejects_illegal_agent_move(game):
+    class BadAgent:
+        def select_move(self, _game, _state):
+            return 7
+
+    agents = {0: BadAgent(), 1: RandomAgent(seed=0)}
+    with pytest.raises(ValueError, match="illegal move"):
+        play_game(game, agents, verbose=False)
+
+
+def test_main_wires_argparse_agent_factories_and_seed(monkeypatch):
+    captured = {}
+
+    def fake_play_game(game, agents):
+        captured["game"] = game
+        captured["agents"] = agents
+        return game.initial_state()
+
+    monkeypatch.setattr(cli, "play_game", fake_play_game)
+    cli.main(["--p0", "human", "--p1", "random", "--seed", "123"])
+
+    assert isinstance(captured["game"], Ayo)
+    assert isinstance(captured["agents"][0], AyoHumanAgent)
+    assert isinstance(captured["agents"][1], RandomAgent)
+
+    state = captured["game"].initial_state()
+    expected = RandomAgent(seed=123).select_move(captured["game"], state)
+    observed = captured["agents"][1].select_move(captured["game"], state)
+    assert observed == expected

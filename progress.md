@@ -13,9 +13,31 @@
 
 ## 0. Changelog
 
+### 2026-04-21 — Phase 2 verified on `codex-handoff`
+
+Phase 2 is now code-complete and verified on branch `codex-handoff`:
+
+- **`src/agents/random_agent.py`** exists and implements a seedable
+  uniform-random agent over `game.legal_moves(state)`, raising on terminal
+  states.
+- **`src/agents/human.py`** exists and implements `AyoHumanAgent` with
+  player-relative pit labels 1..6, injectable I/O, and re-prompts for
+  non-integer, out-of-range, or illegal moves.
+- **`src/cli.py`** exists and provides `python -m src.cli` with `--p0`,
+  `--p1`, and `--seed`. It renders each turn, logs player-relative labels,
+  and prints final stores and result.
+- **Phase 2 hardening after review:** `Ayo.apply_move()` now rejects moves
+  outside `legal_moves()` (including feeding-illegal moves), and
+  `play_game()` fails fast if an agent returns an illegal move.
+- **Tests expanded:** `tests/test_ayo_rules.py` now has 26 tests and
+  `tests/test_agents.py` now has 14 tests. Added coverage for feeding-illegal
+  `apply_move`, render label order, human terminal raises, illegal agent
+  output, verbose label logging, and CLI `main(argv)` factory/seed wiring.
+  Full suite: 40/40 passing.
+
 ### 2026-04-21 — Phase 2 kickoff
 
-In progress (Phase 2: CLI + random agent):
+Initial Phase 2 work:
 
 - **Render updated** to show player-relative pit labels (1..6) above P1's
   row and below P0's row. Each player reads their own row left-to-right as
@@ -24,9 +46,6 @@ In progress (Phase 2: CLI + random agent):
 - **`src/agents/base.py`** created — abstract `Agent[StateT, MoveT]` ABC
   with `select_move(game, state) -> MoveT` and a `name` property.
 - **`src/agents/__init__.py`** created (empty).
-
-Pending inside Phase 2: RandomAgent, AyoHumanAgent, `src/cli.py`,
-`tests/test_agents.py`.
 
 ### 2026-04-21 — Phase 1 cleanup + README
 
@@ -94,10 +113,11 @@ User approved a four-step cleanup batch before starting Phase 2:
 
 ## 2. Where we are right now
 
-**Phase 1 is complete** (rules engine + 24 passing tests + fact-checked +
-both flagged issues fixed + README written). **Phase 2 is in progress**
-(Agent ABC exists; RandomAgent / HumanAgent / CLI / agent tests still to
-go). See §0 for the blow-by-blow.
+**Phase 1 is complete** (rules engine + 26 passing tests + fact-checked +
+both flagged issues fixed + README written). **Phase 2 is code-complete**
+(human/random agents, playable CLI, hardened move validation, and 14 agent/CLI
+tests). The user should playtest the CLI before Phase 3 begins. See §0 for the
+blow-by-blow.
 
 ### What exists on disk
 
@@ -116,24 +136,24 @@ ayo-cs152/
 ├── requirements.txt              # numpy>=1.24, pytest>=7.0
 ├── src/
 │   ├── __init__.py
+│   ├── cli.py                    # playable human/random terminal runner
 │   ├── agents/
 │   │   ├── __init__.py
-│   │   └── base.py               # abstract Agent[StateT, MoveT] ABC
+│   │   ├── base.py               # abstract Agent[StateT, MoveT] ABC
+│   │   ├── human.py              # AyoHumanAgent for CLI play
+│   │   └── random_agent.py       # seedable random baseline
 │   └── games/
 │       ├── __init__.py
 │       ├── base.py               # abstract Game[StateT, MoveT] ABC
 │       └── ayo.py                # AyoState + Ayo rules engine
 └── tests/
     ├── __init__.py
-    └── test_ayo_rules.py         # 24 passing tests
+    ├── test_agents.py            # 14 passing Phase 2 tests
+    └── test_ayo_rules.py         # 26 passing Ayo rule tests
 ```
 
 ### What does NOT exist yet (to avoid confusion)
 
-- `src/agents/random_agent.py` — Phase 2, next up.
-- `src/agents/human.py` — Phase 2, next up.
-- `src/cli.py` — Phase 2, next up.
-- `tests/test_agents.py` — Phase 2, next up.
 - `src/games/connect_four.py` — Phase 3.
 - `src/agents/minimax.py` — Phase 3.
 - `src/heuristics/` — Phase 4.
@@ -149,10 +169,16 @@ ayo-cs152/
 source .venv/bin/activate
 
 # Run tests
-pytest tests/ -q           # currently: 24 passed
+pytest tests/ -q           # currently: 40 passed
+
+# Play a game: human P0 vs. random P1
+python -m src.cli
+
+# Seeded random-vs-random smoke game
+python -m src.cli --p0 random --p1 random --seed 42
 
 # Lint (the user hasn't asked for lint-on-commit; run when touching files)
-flake8 src tests
+flake8 src tests           # not installed in the current venv as of 2026-04-21
 
 # Python version
 python --version           # should say 3.13.8
@@ -208,6 +234,9 @@ Stores have no opposite.
 - **`apply_move` always returns a finalized state.** If the move ends the
   game, any remaining-seed sweeps are already reflected in the returned state.
   Callers never need to call a separate finalize method.
+- **`apply_move` enforces full move legality.** A move must be in
+  `legal_moves(state)`, not just on the mover's side and non-empty. This
+  matters for feeding-rule positions and for future search agents.
 - **Terminal branches inside `_finalize_if_terminal`:**
     1. Mover's own side is empty → opponent sweeps remaining board seeds into
        opponent's store (standard endgame).
@@ -231,7 +260,7 @@ Stores have no opposite.
 
 ## 5. Phase 1 test coverage — what's there, what to maybe add
 
-All 24 tests in `tests/test_ayo_rules.py` pass. Coverage hits:
+All 26 tests in `tests/test_ayo_rules.py` pass. Coverage hits:
 
 - initial state + 48-seed invariant
 - immutability + hashing; `q_key()` ignores ply
@@ -245,10 +274,11 @@ All 24 tests in `tests/test_ayo_rules.py` pass. Coverage hits:
 - skip-origin per lap (the 12-seed-in-pit-0 test)
 - single-relay and compound-relay-with-capture
 - feeding rule restricts legal moves
+- `apply_move` rejects feeding-illegal moves excluded by `legal_moves`
 - feeding impossible → terminal; sweep direction correct
 - mover-side-empty → opp collects
 - ply-limit terminal: winner by stores, draw if tied
-- render produces multi-line string
+- render produces multi-line string and preserves player-relative label order
 
 ### Suggested additional tests (from the test-trace verifier agent, not yet added)
 
@@ -281,13 +311,13 @@ Neither is strictly required; they'd close small coverage gaps.
 > phase** and ask for approval before starting the next. When making design
 > decisions with real trade-offs, ask rather than silently choosing.
 
-### Phase 2 — Game-playing CLI + random agent (in progress)
+### Phase 2 — Game-playing CLI + random agent (code-complete)
 
 **Goal:** the user can play Ayo in the terminal vs. a random opponent to
 sanity-check the feel before AI lands.
 
-**Status:** `src/agents/base.py` written (Agent ABC). Render updated with
-player-relative labels. Remaining:
+**Status:** implemented and tested. The only remaining Phase 2 gate is user
+playtesting in the terminal before Phase 3 work begins.
 
 - `src/agents/random_agent.py` — uniform-random over
   `game.legal_moves(state)`. Seedable via `seed=` kwarg.
@@ -295,11 +325,11 @@ player-relative labels. Remaining:
   re-prompts on non-integer, out-of-range, or illegal pit. Takes
   injectable `input_fn` / `output_fn` so tests can drive it.
 - `src/cli.py` — single entrypoint (`python -m src.cli`). Argparse with
-  `--p0`, `--p1`, `--seed`. Renders state each turn, prints "P0 plays
-  pit 3 (label)", shows final stores and winner.
-- `tests/test_agents.py` — random never picks illegal; same seed →
-  deterministic; human round-trips labels/pits; re-prompts on bad input;
-  `play_game()` runs two random agents to terminal without error.
+  `--p0`, `--p1`, `--seed`. Renders state each turn, prints player-relative
+  move labels, shows final stores and winner.
+- `tests/test_agents.py` — 14 tests covering RandomAgent, AyoHumanAgent,
+  `play_game()`, invalid agent output, verbose move logs, and CLI
+  `main(argv)` factory/seed wiring.
 
 **Decisions locked in (user):**
 - **Pit labels:** 1..6 relative, both players. P0 label 1 = pit 0;
@@ -430,21 +460,16 @@ Read `memory/` for the long-form versions. Summary:
 
 ## 9. Exact next action for the incoming agent
 
-Phase 2 is mid-flight. Resume by:
+Phase 2 is code-complete. The next action is for the user to playtest the CLI:
 
-1. Write `src/agents/random_agent.py` (seedable; raises if no legal
-   moves).
-2. Write `src/agents/human.py` — `AyoHumanAgent` with 1..6 label I/O,
-   injectable `input_fn`/`output_fn`, re-prompt on bad input.
-3. Write `src/cli.py` — `python -m src.cli --p0 {human,random} --p1 ...
-   [--seed N]`. Turn-by-turn render, per-move log, final score.
-4. Write `tests/test_agents.py` — cover RandomAgent (legal-only,
-   deterministic with seed, raises on terminal), AyoHumanAgent (label/pit
-   bijection, valid input, re-prompt on bad/illegal), and a smoke test
-   for `play_game()` with two random seeded agents running to terminal.
-5. `pytest tests/ -q` should be green. Update §0 changelog with what
-   landed, then ask the user to playtest the CLI before moving to Phase
-   3. Remind them `source .venv/bin/activate` first.
+```bash
+source .venv/bin/activate
+python -m src.cli
+```
+
+If the CLI feels right, ask for approval to begin Phase 3. Phase 3 should start
+with a short design proposal for `ConnectFourState`, `ConnectFour`, and the
+reusable minimax/alpha-beta agent before writing code.
 
 **Do not** start Phase 3 until the user has actually played a game in
 the CLI — that playtest is what Phase 2 exists to enable.
@@ -493,9 +518,7 @@ Three agents were run in parallel on the Phase 1 output:
   pit 12), but the labels shown above it are 1..6 — so P1 reading
   left-to-right sees "1 2 3 4 5 6" even though the underlying pits are
   12..7. Don't "fix" the pit order without also flipping the label-to-pit
-  mapping in `AyoHumanAgent` (when that lands) — the two are coupled.
+  mapping in `AyoHumanAgent` — the two are coupled.
 - **Label ↔ pit mapping** (for any code that prompts the user or prints
   moves): P0 label n ∈ {1..6} → pit n−1; P1 label n ∈ {1..6} → pit 13−n.
   Reverse: P0 pit i → label i+1; P1 pit i → label 13−i.
-
-
