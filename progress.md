@@ -13,6 +13,72 @@
 
 ## 0. Changelog
 
+### 2026-04-21 — Phase 3 implemented and verified
+
+- **Connect Four rules engine added:** `src/games/connect_four.py` implements
+  immutable `ConnectFourState`, bottom-left row-major board indexing, gravity,
+  legal moves, full-column rejection, horizontal/vertical/diagonal win
+  detection, draw terminals, and rendering.
+- **Reusable minimax agent added:** `src/agents/minimax.py` implements
+  `MinimaxAgent`, `SearchStats`, fixed-depth minimax for deterministic tests,
+  optional alpha-beta pruning, optional exact-only transposition caching,
+  center-first Connect Four move ordering, and a simple Connect Four heuristic.
+- **Phase 3 tests added:** `tests/test_connect_four.py` has 9 rule/render tests;
+  `tests/test_minimax.py` has 8 tactical/search tests, including immediate win,
+  forced block, deterministic tie-breaking, terminal-score dominance,
+  alpha-beta equivalence to plain minimax with TT disabled, and alpha-beta node
+  reduction with TT disabled.
+- **Verification:** full suite is 57/57 passing. `compileall` and
+  `git diff --check` pass.
+
+### 2026-04-21 — Phase 3 final design clarifications approved
+
+- User approved the revised Phase 3 direction with final clarifications before
+  implementation.
+- `heuristic(game, state, player)` must treat `player` as the root/perspective
+  player, not necessarily `state.to_move`.
+- Terminal search scores must dominate heuristic values. Use a fixed
+  `WIN_SCORE` larger than any expected heuristic magnitude; prefer shorter
+  wins and longer losses by adjusting terminal scores by distance from root.
+- `SearchStats.nodes` means the number of recursive search calls entered. Use
+  that definition consistently for plain minimax and alpha-beta comparisons.
+- Default Phase 3 Connect Four heuristic: center-column preference plus
+  window-of-four scoring for open own/opponent lines, with a stronger penalty
+  for immediate opponent threats.
+
+### 2026-04-21 — Phase 3 design review feedback incorporated
+
+- User reviewed the initial Phase 3 proposal and approved the direction but
+  required tighter design before implementation.
+- Locked Phase 3 design requirements: `MinimaxAgent` must accept a pluggable
+  `heuristic=` callable; nonterminal depth-cutoff leaves must use that
+  heuristic; Connect Four gets its own simple heuristic for Phase 3.
+- Transposition-table rule: do **not** key by raw `hash(state)`. Use frozen
+  state objects directly, make entries depth-aware, and keep TT disabled in
+  alpha-beta-vs-plain-minimax comparison tests so pruning is isolated from
+  caching.
+- Determinism rule: use explicit move ordering and tie-breaking. For Connect
+  Four, search columns center-first `(3, 2, 4, 1, 5, 0, 6)` and pick the first
+  move in that order among equal scores.
+- `last_stats` should be a typed `SearchStats` dataclass, reset on every
+  search, with fields such as `nodes`, `cutoffs`, `depth_completed`,
+  `elapsed_s`, and optional `tt_hits`.
+- Connect Four board indexing must be documented before coding.
+
+### 2026-04-21 — Phase 2 playtest passed; Phase 3 kickoff
+
+- **User playtested Phase 2 CLI as P0** through a complete human-vs-random
+  game, including invalid input (`banana`) and an empty/illegal pit selection.
+  The transcript was replayed through the engine move-by-move; every accepted
+  move was legal, every printed state matched the rules engine, seeds stayed
+  conserved at 48, and the final result (P0 wins 38-10) was correct.
+- **Phase 2 is fully accepted.** The only minor UI note is that terminal boards
+  still show `to move: P{next}` after a terminal move because `apply_move`
+  flips turns even at game end. This is internally consistent and not a blocker.
+- **Phase 3 is now active.** Start with a short design proposal for
+  `ConnectFourState`, `ConnectFour`, and the reusable minimax/alpha-beta agent
+  before writing code.
+
 ### 2026-04-21 — Phase 2 verified on `codex-handoff`
 
 Phase 2 is now code-complete and verified on branch `codex-handoff`:
@@ -114,10 +180,11 @@ User approved a four-step cleanup batch before starting Phase 2:
 ## 2. Where we are right now
 
 **Phase 1 is complete** (rules engine + 26 passing tests + fact-checked +
-both flagged issues fixed + README written). **Phase 2 is code-complete**
-(human/random agents, playable CLI, hardened move validation, and 14 agent/CLI
-tests). The user should playtest the CLI before Phase 3 begins. See §0 for the
-blow-by-blow.
+both flagged issues fixed + README written). **Phase 2 is complete and
+playtested** (human/random agents, playable CLI, hardened move validation, and
+14 agent/CLI tests). **Phase 3 is complete** (Connect Four + reusable minimax
+baseline, 17 tests). Next step is Phase 4 design for Ayo heuristics/minimax.
+See §0 for the blow-by-blow.
 
 ### What exists on disk
 
@@ -141,25 +208,26 @@ ayo-cs152/
 │   │   ├── __init__.py
 │   │   ├── base.py               # abstract Agent[StateT, MoveT] ABC
 │   │   ├── human.py              # AyoHumanAgent for CLI play
+│   │   ├── minimax.py            # reusable minimax / alpha-beta agent
 │   │   └── random_agent.py       # seedable random baseline
 │   └── games/
 │       ├── __init__.py
 │       ├── base.py               # abstract Game[StateT, MoveT] ABC
-│       └── ayo.py                # AyoState + Ayo rules engine
+│       ├── ayo.py                # AyoState + Ayo rules engine
+│       └── connect_four.py       # Connect Four validation baseline
 └── tests/
     ├── __init__.py
     ├── test_agents.py            # 14 passing Phase 2 tests
+    ├── test_connect_four.py      # 9 passing Phase 3 rules tests
+    ├── test_minimax.py           # 8 passing Phase 3 search tests
     └── test_ayo_rules.py         # 26 passing Ayo rule tests
 ```
 
 ### What does NOT exist yet (to avoid confusion)
 
-- `src/games/connect_four.py` — Phase 3.
-- `src/agents/minimax.py` — Phase 3.
 - `src/heuristics/` — Phase 4.
 - `src/agents/qlearning.py` — Phase 5.
-- `src/evaluate.py`, `tests/test_minimax.py`, `tests/test_connect_four.py` —
-  later phases.
+- `src/evaluate.py` — Phase 6.
 - `notebooks/analysis.ipynb` — user will deal with this during analysis phase.
 
 ### How to run things
@@ -169,7 +237,7 @@ ayo-cs152/
 source .venv/bin/activate
 
 # Run tests
-pytest tests/ -q           # currently: 40 passed
+pytest tests/ -q           # currently: 57 passed
 
 # Play a game: human P0 vs. random P1
 python -m src.cli
@@ -311,13 +379,12 @@ Neither is strictly required; they'd close small coverage gaps.
 > phase** and ask for approval before starting the next. When making design
 > decisions with real trade-offs, ask rather than silently choosing.
 
-### Phase 2 — Game-playing CLI + random agent (code-complete)
+### Phase 2 — Game-playing CLI + random agent (complete)
 
 **Goal:** the user can play Ayo in the terminal vs. a random opponent to
 sanity-check the feel before AI lands.
 
-**Status:** implemented and tested. The only remaining Phase 2 gate is user
-playtesting in the terminal before Phase 3 work begins.
+**Status:** implemented, tested, and playtested by the user on 2026-04-21.
 
 - `src/agents/random_agent.py` — uniform-random over
   `game.legal_moves(state)`. Seedable via `seed=` kwarg.
@@ -339,25 +406,52 @@ playtesting in the terminal before Phase 3 work begins.
 - **Label mapping on-board:** shown in `Ayo.render()` itself (not just
   the CLI), above P1's row and below P0's row.
 
-### Phase 3 — Connect Four + minimax (validation baseline)
+### Phase 3 — Connect Four + minimax (validation baseline) (complete)
 
 **Goal:** prove the minimax implementation is correct on a game we already
 understand, *before* trusting it on Ayo.
 
-- `src/games/connect_four.py` — 7×6 board, same `Game` interface.
-- `src/agents/minimax.py` — negamax with alpha-beta, iterative deepening
-  with a time budget per move, transposition table keyed on the state's
-  hash. Return `(move, stats)` with node counts.
-- `tests/test_connect_four.py` — mate-in-N puzzles, minimax > random at
-  even shallow depth, alpha-beta returns same move as plain minimax.
-- Empirical check: at depth N, alpha-beta visits measurably fewer nodes
-  than plain minimax on the same position.
+**Status:** implemented and tested on 2026-04-21.
 
-Decisions to raise:
-- Iterative deepening time budget: seconds, or node budget, or both? Default
-  to seconds (more standard for didactic purposes).
-- Transposition table: Zobrist hashing is overkill for this size — Python's
-  built-in `hash(state)` on the frozen dataclass is fine. Confirm.
+- `src/games/connect_four.py` — 7x6 board, same `Game` interface. Board
+  indexing convention must be explicit in the module docstring and render
+  tests.
+- `src/agents/minimax.py` — reusable negamax/minimax agent with alpha-beta,
+  fixed-depth mode for deterministic tests, and seconds-based iterative
+  deepening for play. It must take a pluggable `heuristic(game, state, player)`
+  callable rather than baking in Connect Four evaluation. The `player`
+  argument means the root/perspective player whose score is being evaluated,
+  not necessarily `state.to_move`.
+- Terminal scoring — use a fixed `WIN_SCORE` that safely dominates heuristic
+  values. Prefer shorter wins and longer losses by adjusting terminal values
+  with distance from root, e.g. win = `WIN_SCORE - distance`, loss =
+  `-WIN_SCORE + distance`.
+- `SearchStats` dataclass — stable stats contract for later evaluation:
+  `nodes`, `cutoffs`, `depth_completed`, `elapsed_s`, and `tt_hits` if TT is
+  enabled. `nodes` means recursive search calls entered.
+- Default Connect Four heuristic — center-column preference plus
+  window-of-four scoring based on counts of own pieces, opponent pieces, and
+  empties. Reward open own twos/threes, score wins very highly, penalize open
+  opponent twos/threes, and penalize immediate opponent three-in-a-row threats
+  more strongly.
+- Move order / ties — deterministic ordering is required. Connect Four should
+  use center-first columns `(3, 2, 4, 1, 5, 0, 6)`. Equal scores choose the
+  first move in search order.
+- Transposition table — optional after plain minimax and alpha-beta are
+  correct. If implemented, use frozen state objects directly, never raw
+  `hash(state)` ints; entries must be depth-aware. For alpha-beta comparison
+  tests, disable TT to isolate pruning.
+- `tests/test_connect_four.py` — gravity, legal moves, full-column rejection,
+  horizontal/vertical/diagonal wins, draw detection, and render/indexing.
+- `tests/test_minimax.py` — immediate win, forced block, alpha-beta same move
+  as plain minimax under identical move ordering, and alpha-beta fewer nodes
+  than plain minimax with TT disabled. Minimax-vs-random can be kept as a smoke
+  test, not a primary correctness proof.
+- Full Phase 3 coverage currently: 17 tests.
+
+Approved defaults unless user revises:
+- Seconds-based time budgets plus fixed-depth mode for deterministic tests.
+- No Zobrist hashing at this scale.
 
 ### Phase 4 — Minimax for Ayo with 4 heuristics
 
@@ -460,19 +554,12 @@ Read `memory/` for the long-form versions. Summary:
 
 ## 9. Exact next action for the incoming agent
 
-Phase 2 is code-complete. The next action is for the user to playtest the CLI:
-
-```bash
-source .venv/bin/activate
-python -m src.cli
-```
-
-If the CLI feels right, ask for approval to begin Phase 3. Phase 3 should start
-with a short design proposal for `ConnectFourState`, `ConnectFour`, and the
-reusable minimax/alpha-beta agent before writing code.
-
-**Do not** start Phase 3 until the user has actually played a game in
-the CLI — that playtest is what Phase 2 exists to enable.
+Phase 3 is complete. Stop at this phase boundary and ask the user to approve
+moving to Phase 4. Phase 4 should start with a design proposal for
+`src/heuristics/ayo_heuristics.py`, Ayo-specific minimax configuration, and the
+evaluation approach for comparing H1-H4. Keep `progress.md` updated after each
+meaningful checkpoint and keep `AI_log.md` updated with how the user helped
+steer/debug/validate the work.
 
 ---
 

@@ -27,8 +27,9 @@ python -m src.cli
 python -m src.cli --p0 random --p1 random --seed 42
 ```
 
-The CLI currently supports human and random agents. Minimax, Q-learning, and
-the evaluation harness land in later phases.
+The CLI currently supports human and random agents. Minimax is implemented
+and validated on Connect Four; Ayo heuristics, Q-learning, and the evaluation
+harness land in later phases.
 
 ---
 
@@ -36,8 +37,8 @@ the evaluation harness land in later phases.
 
 ```
 src/
-├── games/      # rules engines (Ayo done; Connect Four coming)
-├── agents/     # random and human done; minimax, Q-learning coming
+├── games/      # rules engines (Ayo and Connect Four)
+├── agents/     # random, human, minimax; Q-learning coming
 ├── heuristics/ # Ayo evaluation functions (H1..H4)          [coming]
 ├── cli.py      # human-vs-agent game runner
 └── evaluate.py # tournament harness + metrics               [coming]
@@ -115,7 +116,7 @@ The full rules engine and its test suite live in
 |-------|----------------------------------------------|----------------|
 | 1     | Ayo rules engine + tests                     | Done (26/26)   |
 | 2     | CLI + random agent                           | Done (14/14)   |
-| 3     | Connect Four + minimax (validation baseline) | Pending        |
+| 3     | Connect Four + minimax (validation baseline) | Done (17/17)   |
 | 4     | Minimax for Ayo with heuristics H1–H4        | Pending        |
 | 5     | Tabular Q-learning via self-play             | Pending        |
 | 6     | Evaluation harness                           | Pending        |
