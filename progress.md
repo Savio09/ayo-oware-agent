@@ -13,14 +13,19 @@
 
 ## 0. Changelog
 
-### 2026-04-22 — Experiment batch completed and relay-cycle bug fixed
+### 2026-04-22 — Experiment batch completed and relay-cycle rule accepted
 
 - **Long Q-learning training exposed a rules edge case:** 50k self-play found
   a reachable relay-sowing cycle where a candidate move never reached an empty
   final pit.
-- **Ayo legality hardened:** `legal_moves()` now filters out nonterminating
-  relay moves, `_sow()` detects repeated relay states, and `apply_move()`
-  rejects cyclic candidates as ordinary illegal moves rather than crashing.
+- **User-approved computational convention:** intra-move relay cycles are
+  distinct from inter-move repeated positions. Moves whose relay sowing repeats
+  an exact sow-state are illegal and filtered out of `legal_moves()`. The
+  existing 200-ply safeguard remains the only inter-move cycle handling.
+- **Ayo legality hardened under that convention:** `legal_moves()` now filters
+  out nonterminating relay moves, `_sow()` detects repeated relay states, and
+  `apply_move()` rejects cyclic candidates as ordinary illegal moves rather
+  than crashing.
 - **Regression test added:** `tests/test_ayo_rules.py` covers the discovered
   cyclic state and verifies the nonterminating move is not legal.
 - **Independent verification:** three spawned verifier agents reviewed the
@@ -33,9 +38,15 @@
 - **Q-learning checkpoint trained:** `artifacts/qlearning_50k_seed152.pkl`
   was trained for 50,000 self-play episodes. Metadata is recorded in
   `artifacts/qlearning_50k_seed152_metadata.json`; the `.pkl` file is ignored
-  by git to avoid committing a 47 MB artifact.
+  by git to avoid committing a 47 MB artifact. This checkpoint was generated
+  after the intra-move relay-cycle filter was in place.
 - **Final experiment batch completed:** CSVs, metadata, and a summary README
-  live under `results/phase6_seed20260422_depth3_final/`.
+  live under `results/phase6_seed20260422_depth3_final/`. This final batch was
+  generated after the intra-move relay-cycle filter was in place.
+- **Report tables drafted first:** `results/phase6_seed20260422_depth3_final/report_tables.md`
+  groups the final batch into report-ready tables for agents-vs-random,
+  Q-learning-vs-minimax, and pairwise minimax comparisons. No extra experiments
+  were run for these tables.
 - **Headline results:** depth-3 minimax H1-H4 each beat random 100/100;
   the 50k Q-learning checkpoint beat random 61/100 with 3 draws; the same
   Q-learning checkpoint lost 0/100 to each depth-3 minimax heuristic. Pairwise
@@ -426,7 +437,8 @@ Wikipedia and Mancala Fandom. **Don't revisit these without asking the user.**
 | Skip-origin during sow                | Applies **per lap** only — a later relay lap may sow into the original pit.|
 | Stores in sowing path                 | Both stores are skipped during sowing (always).                            |
 | Grand slam (emptying opp side)        | Allowed; capture is allowed; feeding rule then kicks in on next turn.      |
-| Repeated-position cycle detection     | None. Use a **200-ply safety valve** instead.                              |
+| Inter-move repeated-position handling | None. Use the **200-ply safety valve** only.                               |
+| Intra-move relay-cycle handling       | Nonterminating relay moves are illegal and filtered from `legal_moves`.    |
 | Ply-limit terminal                    | Seeds stay on board; winner decided by **store counts only**; tie = draw.  |
 | Utility at terminals                  | Pure ±1 / 0. Heuristics live in a separate module (not in the game class). |
 | Q-learning state key                  | `AyoState.q_key()` returns `(pits, to_move)` — **omits ply**.              |

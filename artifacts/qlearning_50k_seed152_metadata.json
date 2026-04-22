@@ -16,5 +16,8 @@
   "avg_plies": 34.11,
   "total_plies": 1705581,
   "training_elapsed_s": 184.76,
-  "file_bytes": 47087482
+  "file_bytes": 47087482,
+  "intra_move_relay_cycle_policy": "nonterminating relay moves are illegal and filtered from legal_moves",
+  "inter_move_repeated_position_policy": "none; 200-ply safety valve only",
+  "generated_after_relay_cycle_policy": true
 }

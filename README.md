@@ -79,6 +79,10 @@ in any place is called out explicitly.
 - **Relay (multi-lap) sowing:** if the last seed lands in a non-empty
   pit, pick up all seeds there and continue sowing from that pit. Sowing
   stops only when the last seed lands in an **empty** pit.
+- **Intra-move relay cycles:** if relay sowing repeats an exact sow-state
+  during a move and therefore cannot reach an empty final pit, that move is
+  treated as illegal and is filtered out of `legal_moves()`. This is a
+  computational convention for nonterminating moves inside one move.
 - **Capture:** if sowing stops in an empty pit on the mover's own side
   AND the opposite pit contains seeds, the mover captures the opposite
   pit's seeds **plus the final seed** into their store.
@@ -95,6 +99,9 @@ in any place is called out explicitly.
   plies without terminating, it ends. Seeds still on the board are
   ignored; the winner is decided by store counts, with ties = draws.
   This is a computational safeguard, not a traditional rule.
+- **Inter-move repeated positions:** no repeated-position detection is used
+  across turns; the 200-ply safety valve is the only inter-move cycle
+  safeguard.
 
 The full rules engine and its test suite live in
 `src/games/ayo.py` and `tests/test_ayo_rules.py`.
