@@ -36,3 +36,39 @@ AI Statement / Collaboration Log
   center-first move ordering, typed search statistics, terminal scores that
   dominate heuristic scores, and alpha-beta comparison tests with
   transposition-table caching disabled.
+- I reviewed the Phase 4 Ayo heuristic proposal before implementation and
+  pushed for tighter definitions. I clarified that H3/H4 should be described
+  as immediate store-gain potential rather than pure capture potential, because
+  finalized Ayo moves can include terminal sweeps. I also asked for
+  counterfactual mobility/gain helpers to be documented, heuristic weights to
+  be exposed through factory functions, deterministic Ayo move ordering to
+  acknowledge its extra `apply_move()` cost, and robust tests for helper
+  computations and tactical move choice.
+- After that review, the AI implemented `src/heuristics/ayo_heuristics.py`
+  with Ayo H1-H4 heuristics, tuning factories, helper functions, deterministic
+  immediate-gain move ordering, and a convenience Ayo minimax configuration
+  that reuses the existing `MinimaxAgent` unchanged.
+- The AI added `tests/test_ayo_heuristics.py` and verified Phase 4 with the
+  full test suite: 67/67 tests passed. It also ran `compileall` and
+  `git diff --check`; `flake8` was not available in the virtual environment.
+- The AI updated `README.md` and `progress.md` to mark Phase 4 complete and to
+  set the next handoff point as Phase 5 tabular Q-learning design.
+- I reviewed the Phase 5 Q-learning proposal and tightened the design before
+  implementation. I clarified that reward must be computed from the player who
+  acted in `state`, not from `next_state.to_move`, because Ayo flips turns even
+  at terminal states. I also clarified that the shared Q-table uses
+  `(state.q_key(), move)` directly, with no role-flipping or board
+  canonicalization.
+- I asked the AI to keep normal `select_move()` greedy and isolate epsilon
+  exploration to self-play training, write down the exact zero-sum Q-update,
+  track average plies in training stats, persist metadata with pickled Q-tables,
+  and add tests for terminal-no-bootstrap behavior and terminal-state
+  `select_move()` errors.
+- After those clarifications, the AI implemented `src/agents/qlearning.py`
+  with `QLearningAgent`, `TrainingStats`, self-play training, sparse terminal
+  rewards, zero-sum bootstrapping, and save/load support.
+- The AI added `tests/test_qlearning.py` and verified Phase 5 with the full
+  test suite: 76/76 tests passed. It also ran `compileall` and
+  `git diff --check`.
+- The AI updated `README.md` and `progress.md` to mark Phase 5 complete and to
+  set the next handoff point as Phase 6 evaluation harness design.

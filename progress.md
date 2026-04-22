@@ -13,6 +13,84 @@
 
 ## 0. Changelog
 
+### 2026-04-22 — Phase 5 implemented and verified
+
+- **Q-learning agent added:** `src/agents/qlearning.py` implements
+  `QLearningAgent`, `TrainingStats`, and `train_self_play()` for tabular Ayo
+  self-play.
+- **Zero-sum update clarified in code:** Q-values are from the current
+  player's perspective. Rewards are measured from the player who took the
+  action in `state`, not `next_state.to_move`. Nonterminal bootstraps use
+  `target = reward - gamma * max_next_q`; terminal next states use reward only.
+- **Shared-table semantics locked:** keys are `(state.q_key(), move)`;
+  `q_key()` already includes `to_move` and omits `ply`, so no extra
+  role-flipping or board canonicalization is used.
+- **Exploration isolated to training:** `select_move()` is greedy for normal
+  play/evaluation. Self-play uses an internal epsilon-greedy helper with a
+  linear decay schedule.
+- **Persistence added:** `save()` / `load()` pickle the Q-table plus metadata
+  (`format_version`, `alpha`, and `gamma`).
+- **Phase 5 tests added:** `tests/test_qlearning.py` has 9 tests covering
+  default Q-values, greedy tie-breaking, epsilon legal moves, terminal-state
+  raises, acting-player terminal reward, terminal-no-bootstrap behavior via the
+  same test, zero-sum nonterminal bootstrapping, illegal update rejection,
+  self-play stats including average plies, and save/load round-tripping.
+- **Verification:** full suite is 76/76 passing. `compileall` and
+  `git diff --check` pass.
+
+### 2026-04-22 — Phase 4 implemented and verified
+
+- **Ayo heuristic module added:** `src/heuristics/ayo_heuristics.py`
+  provides `ayo_h1`..`ayo_h4`, `make_ayo_h2`..`make_ayo_h4`, direct helper
+  functions for store differential, counterfactual mobility, immediate
+  finalized store-gain potential, and deterministic Ayo move ordering.
+- **Reuse of Phase 3 minimax confirmed:** Phase 4 did not change
+  `MinimaxAgent`; Ayo minimax is configured through `heuristic=` and
+  `move_order=`. Terminal states still use the minimax terminal-score path;
+  H1-H4 are only nonterminal cutoff evaluations.
+- **Design clarifications implemented:** H3/H4 are documented as immediate
+  store-gain potential rather than pure capture potential, counterfactual
+  `to_move` replacement is documented, tuning weights are factory parameters,
+  and the move-order helper documents its extra `apply_move()` cost.
+- **Phase 4 tests added:** `tests/test_ayo_heuristics.py` has 10 tests for
+  H1-H4, factory weights, helper computations behind H3/H4, deterministic
+  move ordering, Ayo minimax integration, robust tactical move choice, and the
+  terminal-child path that must bypass heuristics.
+- **Verification:** full suite is 67/67 passing. `compileall` and
+  `git diff --check` pass.
+- `AI_log.md` was initially left untouched until the user later explicitly
+  asked for it to be updated.
+
+### 2026-04-22 — Phase 4 heuristic design refined
+
+- User approved the Phase 4 direction but required tighter definitions before
+  coding.
+- H3/H4 should be described honestly as **immediate store-gain potential**,
+  not pure capture potential, because `Ayo.apply_move()` returns finalized
+  states and store deltas may include terminal sweeps.
+- Mobility and immediate-gain helpers may use `dataclasses.replace(state,
+  to_move=player)`, but must document this as a counterfactual heuristic
+  feature from each side's perspective on the same board.
+- Keep exported defaults (`ayo_h1`..`ayo_h4`) and add factory helpers
+  (`make_ayo_h2`..`make_ayo_h4`) so later weight tuning is reproducible without
+  editing module globals.
+- Ayo move ordering by descending immediate store gain then pit index is
+  accepted. Document the extra `apply_move()` overhead and why it is acceptable
+  for Ayo's branching factor (at most 6).
+- Add direct unit tests for helper computations behind H3/H4, plus a robust
+  tactical minimax state where one move has a clearly superior immediate store
+  consequence.
+- Heuristics are for nonterminal cutoffs only. True terminal states remain
+  scored by `MinimaxAgent`'s terminal path.
+- Do **not** edit `AI_log.md` during this Phase 4 implementation unless the
+  user explicitly asks.
+
+### 2026-04-21 — Phase 4 design approved to begin
+
+- User approved continuing past the Phase 3 boundary.
+- Phase 4 is now active at the design step. Do not implement Ayo minimax or
+  heuristics until the Phase 4 design proposal is reviewed.
+
 ### 2026-04-21 — Phase 3 implemented and verified
 
 - **Connect Four rules engine added:** `src/games/connect_four.py` implements
@@ -156,8 +234,9 @@ User approved a four-step cleanup batch before starting Phase 2:
 - **Target grade:** 4–5. Functional code is a floor, not a ceiling — depth and
   synthesis matter.
 - **Core deliverable:** AI opponent for Ayo (Yoruba mancala).
-- **User writes the report separately** (3 pages). Our job is the code, the
-  analysis inputs (tables, figures), and an `AI_log.md` accounting of AI usage.
+- **User writes the report separately** (3 pages). Our job is the code and the
+  analysis inputs (tables, figures). The user maintains `AI_log.md` unless
+  they explicitly ask us to edit it.
 - **Full original spec:** `instruction.md` (still authoritative on what phases
   exist and what the user wants). Read it once.
 - **Assignment PDF:** `AI Final Project.pdf` (rubric — grade 4/5 requires
@@ -183,8 +262,10 @@ User approved a four-step cleanup batch before starting Phase 2:
 both flagged issues fixed + README written). **Phase 2 is complete and
 playtested** (human/random agents, playable CLI, hardened move validation, and
 14 agent/CLI tests). **Phase 3 is complete** (Connect Four + reusable minimax
-baseline, 17 tests). Next step is Phase 4 design for Ayo heuristics/minimax.
-See §0 for the blow-by-blow.
+baseline, 17 tests). **Phase 4 is complete** (Ayo H1-H4 heuristics plus
+minimax configuration helpers, 10 tests). **Phase 5 is complete** (tabular
+Q-learning self-play, 9 tests). Next step is Phase 6 design for the evaluation
+harness. See §0 for the blow-by-blow.
 
 ### What exists on disk
 
@@ -209,7 +290,11 @@ ayo-cs152/
 │   │   ├── base.py               # abstract Agent[StateT, MoveT] ABC
 │   │   ├── human.py              # AyoHumanAgent for CLI play
 │   │   ├── minimax.py            # reusable minimax / alpha-beta agent
+│   │   ├── qlearning.py          # tabular Ayo Q-learning + self-play
 │   │   └── random_agent.py       # seedable random baseline
+│   ├── heuristics/
+│   │   ├── __init__.py
+│   │   └── ayo_heuristics.py     # Ayo H1-H4 + move ordering helpers
 │   └── games/
 │       ├── __init__.py
 │       ├── base.py               # abstract Game[StateT, MoveT] ABC
@@ -218,15 +303,15 @@ ayo-cs152/
 └── tests/
     ├── __init__.py
     ├── test_agents.py            # 14 passing Phase 2 tests
+    ├── test_ayo_heuristics.py    # 10 passing Phase 4 tests
+    ├── test_ayo_rules.py         # 26 passing Ayo rule tests
     ├── test_connect_four.py      # 9 passing Phase 3 rules tests
     ├── test_minimax.py           # 8 passing Phase 3 search tests
-    └── test_ayo_rules.py         # 26 passing Ayo rule tests
+    └── test_qlearning.py         # 9 passing Phase 5 tests
 ```
 
 ### What does NOT exist yet (to avoid confusion)
 
-- `src/heuristics/` — Phase 4.
-- `src/agents/qlearning.py` — Phase 5.
 - `src/evaluate.py` — Phase 6.
 - `notebooks/analysis.ipynb` — user will deal with this during analysis phase.
 
@@ -237,7 +322,7 @@ ayo-cs152/
 source .venv/bin/activate
 
 # Run tests
-pytest tests/ -q           # currently: 57 passed
+pytest tests/ -q           # currently: 76 passed
 
 # Play a game: human P0 vs. random P1
 python -m src.cli
@@ -453,54 +538,71 @@ Approved defaults unless user revises:
 - Seconds-based time budgets plus fixed-depth mode for deterministic tests.
 - No Zobrist hashing at this scale.
 
-### Phase 4 — Minimax for Ayo with 4 heuristics
+### Phase 4 — Minimax for Ayo with 4 heuristics (complete)
 
 **Goal:** port the minimax code to Ayo, pluggable heuristics.
 
-- `src/heuristics/ayo_heuristics.py` with 4 functions that take `(AyoState,
-  player) -> float`:
+**Status:** implemented and tested on 2026-04-22.
+
+- `src/heuristics/ayo_heuristics.py` with 4 functions that take
+  `(game, state, player) -> float`, where `player` is the root/perspective
+  player:
     - **H1:** `stores[me] - stores[opp]`
     - **H2:** H1 + mobility bonus `α * (|legal_moves(me)| - |legal_moves(opp)|)`
-    - **H3:** H2 + next-move capture potential (count pits where we could
-      capture next turn if we had the move)
-    - **H4:** H3 − vulnerability penalty (pits on our side holding 1–2 seeds
-      that the opponent could capture next turn)
+    - **H3:** H2 + immediate store-gain potential differential
+    - **H4:** H3 − extra vulnerability penalty based on opponent immediate
+      store-gain potential
 - Minimax takes a `heuristic=` kwarg so you can swap without re-instantiating.
-- Unit tests: each heuristic returns opposite signs for (state, 0) vs. (state, 1).
+- Provide default exported heuristics plus `make_ayo_h2`, `make_ayo_h3`, and
+  `make_ayo_h4` factories for reproducible tuning.
+- Unit tests: store differential, mobility, immediate store-gain helpers,
+  vulnerability penalty, factory weights, legal Ayo minimax moves, and a
+  robust tactical state where minimax chooses the clearly superior immediate
+  store-gain move.
+- `make_ayo_minimax_agent()` provides a Phase 4 convenience configuration:
+  `ayo_h4`, depth 4, 1-second time budget, alpha-beta enabled, TT disabled,
+  and immediate-gain move ordering.
+- Full Phase 4 coverage currently: 10 tests.
 
-Decisions to raise:
-- Weights for H2/H3/H4 mixing terms. Start with 1.0 each; tune empirically.
-- Depth bound when time budget exhausted mid-ply: return best-so-far from
-  iterative deepening, not partial search. Standard practice — just confirm.
+Locked decisions:
+- Default weights are placeholders, not tuned values. They are explicit and
+  adjustable through factories.
+- Ayo move ordering uses immediate store gain then pit index. This costs extra
+  `apply_move()` calls but is acceptable because Ayo has at most six legal
+  moves.
 
-### Phase 5 — Tabular Q-learning via self-play
+### Phase 5 — Tabular Q-learning via self-play (complete)
 
 **Goal:** a working Q-learning agent that plays legal Ayo and improves over
 training. Be honest in the report: it will underperform minimax, and that's
 expected.
 
+**Status:** implemented and tested on 2026-04-22.
+
 - `src/agents/qlearning.py`
     - `Q: dict[tuple[StateKey, Move], float]` — lazy (missing = 0.0).
-    - State key = `state.q_key()` — already omits ply.
-    - Policy: epsilon-greedy with decaying epsilon over episodes.
-    - Update rule: standard Q-learning bootstrap with `max_{a'} Q(s', a')`
-      over **legal moves at s'** only.
-    - Self-play: both players update *their own* Q-table (symmetric game, so
-      one shared table with role-flipping is fine — document the choice).
-    - Hyperparameters exposed as kwargs with sensible defaults (α=0.1,
-      γ=0.99, ε₀=1.0, ε_min=0.05, decay linear over training).
-    - Save/load Q-table to disk (pickle or JSON — pickle is easier for
-      tuple-keyed dicts).
-- Tests: Q-update shape (single known transition), never selects illegal
-  moves, epsilon=0 agent is deterministic.
+    - State key = `state.q_key()` — includes `to_move` and omits `ply`.
+    - Shared table: no role-flipping and no board canonicalization; both
+      players' states live in the same dict under different `to_move` keys.
+    - `select_move()` is greedy for normal play/evaluation.
+    - `train_self_play()` uses epsilon-greedy self-play with linear epsilon
+      decay.
+    - Sparse rewards: nonterminal `0.0`; terminal utility from the acting
+      player's perspective.
+    - Zero-sum update: terminal next state `target = reward`; otherwise
+      `target = reward - gamma * max_next_q`.
+    - Hyperparameters exposed as kwargs with defaults `alpha=0.1`,
+      `gamma=0.99`.
+    - `TrainingStats` records episodes, Q-entry count, wins/draws, total
+      plies, and average plies.
+    - `save()` / `load()` pickle the Q-table with `format_version`, `alpha`,
+      and `gamma` metadata.
+- Full Phase 5 coverage currently: 9 tests.
 
-Decisions to raise:
-- Shared Q-table (flip role) vs. separate tables per seat. Shared is simpler
-  and standard for symmetric games; recommend shared.
-- Training budget: 50k–200k episodes feels right. Confirm before running.
-- Reward shape: ±1 at terminal only, or intermediate shaping via store
-  deltas? Start with sparse ±1; mention shaped reward as a discussion point
-  in the report.
+Recommended training budget for actual experiments:
+- Start with 50k self-play episodes.
+- Move to 100k or 200k only if runtime is acceptable and the early evaluation
+  curve suggests more training is useful.
 
 ### Phase 6 — Evaluation harness
 
@@ -554,12 +656,12 @@ Read `memory/` for the long-form versions. Summary:
 
 ## 9. Exact next action for the incoming agent
 
-Phase 3 is complete. Stop at this phase boundary and ask the user to approve
-moving to Phase 4. Phase 4 should start with a design proposal for
-`src/heuristics/ayo_heuristics.py`, Ayo-specific minimax configuration, and the
-evaluation approach for comparing H1-H4. Keep `progress.md` updated after each
-meaningful checkpoint and keep `AI_log.md` updated with how the user helped
-steer/debug/validate the work.
+Phase 5 is complete. Stop at this phase boundary and ask the user to approve
+moving to Phase 6. Phase 6 should start with a design proposal for
+`src/evaluate.py`: agent construction, seat-swapping, metrics, CSV format,
+minimax/Q-learning stats capture, confidence intervals, and tests. Keep
+`progress.md` updated after each meaningful checkpoint. Update `AI_log.md`
+when the user asks or when agreed as part of the current phase.
 
 ---
 

@@ -3,9 +3,9 @@
 An AI opponent for **Ayo** — the Yoruba mancala game from Nigeria —
 built for Minerva CS152 (Harnessing AI Algorithms).
 
-The project implements minimax (alpha-beta + iterative deepening) and
-tabular Q-learning, with Connect Four as a validation baseline for the
-minimax code.
+The project implements Ayo rules/play, reusable minimax (alpha-beta +
+iterative deepening), Ayo heuristic evaluation, tabular Q-learning via
+self-play, and Connect Four as a validation baseline for the minimax code.
 
 ---
 
@@ -28,8 +28,9 @@ python -m src.cli --p0 random --p1 random --seed 42
 ```
 
 The CLI currently supports human and random agents. Minimax is implemented
-and validated on Connect Four; Ayo heuristics, Q-learning, and the evaluation
-harness land in later phases.
+and validated on Connect Four, with Ayo heuristics ready for minimax play;
+Q-learning is implemented as a trainable agent, and the evaluation harness
+lands in a later phase.
 
 ---
 
@@ -38,8 +39,8 @@ harness land in later phases.
 ```
 src/
 ├── games/      # rules engines (Ayo and Connect Four)
-├── agents/     # random, human, minimax; Q-learning coming
-├── heuristics/ # Ayo evaluation functions (H1..H4)          [coming]
+├── agents/     # random, human, minimax, Q-learning
+├── heuristics/ # Ayo evaluation functions (H1..H4)
 ├── cli.py      # human-vs-agent game runner
 └── evaluate.py # tournament harness + metrics               [coming]
 tests/          # pytest rule-correctness + agent tests
@@ -57,7 +58,7 @@ in any place is called out explicitly.
 - **Board:** 12 play pits in 2 rows of 6, plus **two stores** (one per
   player).
   - Traditional Ayoayo keeps captured seeds off-board. This project uses
-    a Kalah-style store abstraction *purely as accounting*: captured
+    a Kalah-style store abstraction _purely as accounting_: captured
     seeds live at indices 6 (P0) and 13 (P1) of a flat 14-tuple. Stores
     are never sown into, and they do not function as "bonus pits" like
     in Kalah — a seed never ends a move in a store. This is a code
@@ -75,7 +76,7 @@ in any place is called out explicitly.
   AND the opposite pit contains seeds, the mover captures the opposite
   pit's seeds **plus the final seed** into their store.
 - **Feeding:** if the opponent's side is empty, the mover must play a
-  move that leaves at least one seed on the opponent's side *after*
+  move that leaves at least one seed on the opponent's side _after_
   captures resolve. If no such move exists, the game ends and the mover
   keeps their own remaining seeds.
 - **Standard endgame:** if the mover has no seeds on their side at the
@@ -105,20 +106,20 @@ The full rules engine and its test suite live in
   values (±1 / 0). Heuristic (non-terminal) evaluation lives in
   `src/heuristics/`, to keep the rules engine free of game-playing bias.
 - **Awari paper (`awari.pdf`).** Romein & Bal (2002) is cited for
-  algorithmic and historical context only. Awari is a *different* game;
+  algorithmic and historical context only. Awari is a _different_ game;
   its rules were not used as a source for Ayo.
 
 ---
 
 ## Status
 
-| Phase | Description                                  | Status         |
-|-------|----------------------------------------------|----------------|
-| 1     | Ayo rules engine + tests                     | Done (26/26)   |
-| 2     | CLI + random agent                           | Done (14/14)   |
-| 3     | Connect Four + minimax (validation baseline) | Done (17/17)   |
-| 4     | Minimax for Ayo with heuristics H1–H4        | Pending        |
-| 5     | Tabular Q-learning via self-play             | Pending        |
-| 6     | Evaluation harness                           | Pending        |
+| Phase | Description                                  | Status       |
+| ----- | -------------------------------------------- | ------------ |
+| 1     | Ayo rules engine + tests                     | Done (26/26) |
+| 2     | CLI + random agent                           | Done (14/14) |
+| 3     | Connect Four + minimax (validation baseline) | Done (17/17) |
+| 4     | Minimax for Ayo with heuristics H1–H4        | Done (10/10) |
+| 5     | Tabular Q-learning via self-play             | Done (9/9)   |
+| 6     | Evaluation harness                           | Pending      |
 
 See `progress.md` for detailed hand-off notes between sessions.
