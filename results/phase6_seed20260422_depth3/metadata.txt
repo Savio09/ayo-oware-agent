@@ -1,0 +1,7 @@
+Phase 6 experiment batch
+seed=20260422
+minimax_depth_limit=3
+minimax_time_limit_s=0.0 (fixed-depth, no time cap)
+q_checkpoint=artifacts/qlearning_50k_seed152.pkl
+seat_swap=True
+total_elapsed_s=228.50

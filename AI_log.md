@@ -72,3 +72,40 @@ AI Statement / Collaboration Log
   `git diff --check`.
 - The AI updated `README.md` and `progress.md` to mark Phase 5 complete and to
   set the next handoff point as Phase 6 evaluation harness design.
+- I reviewed the Phase 6 evaluation-harness proposal and pushed for stronger
+  measurement and reproducibility details before implementation. I asked for
+  fresh agent instances per game, deterministic per-game seeding, explicit
+  move counts, minimax move counts, machine-consistent draw encoding,
+  seat-independent Agent A store margin, a clearly labeled Wilson interval
+  over all games, pure functions beneath the CLI, side-specific Q-learning
+  checkpoint paths, minimax settings recorded in CSV output, and mixed
+  random/minimax stat tests.
+- After that review, the AI implemented `src/evaluate.py` with `make_agent`,
+  `run_game`, `run_tournament`, `summarize_results`, `write_results_csv`,
+  `wilson_interval`, and a thin command-line wrapper.
+- The evaluator writes one CSV row per game, swaps seats by default, records
+  timing and minimax search statistics, supports separate Q-learning
+  checkpoints for Agent A and Agent B, and prints a concise tournament summary.
+- The AI added `tests/test_evaluate.py` and verified Phase 6 with the full
+  test suite: 85/85 tests passed. It also ran `compileall` and
+  `git diff --check`.
+- The AI updated `README.md` and `progress.md` to mark all planned code phases
+  complete and identify experiment execution as the next step.
+- I asked the AI to use other agents to independently verify the rules fix,
+  Q-learning path, evaluator, and experiment methodology rather than relying
+  only on its own self-reporting.
+- During the 50k Q-learning training run, the AI found a reachable relay-sowing
+  cycle. It updated the Ayo rules engine so nonterminating relay moves are
+  filtered out of `legal_moves()`, added a regression test for the discovered
+  state, and reran verification.
+- The independent verifier agents did not find blocking issues. Their
+  low-risk suggestions led the AI to make fixed-depth minimax CSV output more
+  explicit, require logical-side Q-learning checkpoint selection, and record
+  Q-learning checkpoint provenance.
+- The AI trained a 50,000-episode Q-learning checkpoint, recorded metadata and
+  a SHA-256 hash, and ran a seeded, seat-swapped experiment batch comparing
+  random, minimax H1-H4, and the Q-learning checkpoint.
+- The final experiment batch showed Q-learning beating random but losing to
+  each depth-3 minimax heuristic, while all minimax heuristics beat random in
+  the tested sample. The AI saved per-game CSVs and a summary under
+  `results/phase6_seed20260422_depth3_final/`.
