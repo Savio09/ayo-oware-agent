@@ -13,6 +13,70 @@
 
 ## 0. Changelog
 
+### 2026-04-22 — Experiment batch completed and relay-cycle bug fixed
+
+- **Long Q-learning training exposed a rules edge case:** 50k self-play found
+  a reachable relay-sowing cycle where a candidate move never reached an empty
+  final pit.
+- **Ayo legality hardened:** `legal_moves()` now filters out nonterminating
+  relay moves, `_sow()` detects repeated relay states, and `apply_move()`
+  rejects cyclic candidates as ordinary illegal moves rather than crashing.
+- **Regression test added:** `tests/test_ayo_rules.py` covers the discovered
+  cyclic state and verifies the nonterminating move is not legal.
+- **Independent verification:** three spawned verifier agents reviewed the
+  relay-cycle fix, Q-learning path, evaluator contract, and experiment
+  methodology. Their low-risk evaluator findings were incorporated.
+- **Evaluator cleanup after review:** fixed-depth no-time-cap minimax now
+  records a blank `minimax_time_limit_s` in CSV output and the CLI accepts
+  `--minimax-time none`. Q-learning agent construction now requires the
+  logical side (`A` or `B`) so checkpoint paths cannot be silently mixed.
+- **Q-learning checkpoint trained:** `artifacts/qlearning_50k_seed152.pkl`
+  was trained for 50,000 self-play episodes. Metadata is recorded in
+  `artifacts/qlearning_50k_seed152_metadata.json`; the `.pkl` file is ignored
+  by git to avoid committing a 47 MB artifact.
+- **Final experiment batch completed:** CSVs, metadata, and a summary README
+  live under `results/phase6_seed20260422_depth3_final/`.
+- **Headline results:** depth-3 minimax H1-H4 each beat random 100/100;
+  the 50k Q-learning checkpoint beat random 61/100 with 3 draws; the same
+  Q-learning checkpoint lost 0/100 to each depth-3 minimax heuristic. Pairwise
+  minimax heuristic matches split 30/30 after seat swapping in this batch, so
+  use margins/game length rather than overclaiming heuristic win ordering.
+- **Verification:** full suite is 87/87 passing. `compileall` and
+  `git diff --check` pass.
+
+### 2026-04-22 — Phase 6 implemented and verified
+
+- **Evaluation harness added:** `src/evaluate.py` implements testable
+  functions (`make_agent`, `run_game`, `run_tournament`, `summarize_results`,
+  `write_results_csv`, `wilson_interval`) plus a thin CLI.
+- **Reproducibility tightened:** tournaments build fresh agent instances for
+  every game. Random agents receive deterministic per-game, per-seat seeds
+  derived from the tournament seed, game index, and seat.
+- **Seat-swapping default:** Agent A plays P0 for the first half of games and
+  Agent B plays P0 for the second half. Odd game counts give Agent A one extra
+  P0 game.
+- **CSV contract locked:** rows use `winner_player` = `0`, `1`, or `-1` for
+  draws; `winner_agent` = `A`, `B`, or `draw`; `store_margin_for_a` always
+  means stores(agent A) minus stores(agent B), independent of seat.
+- **Measurement fields added:** rows include move counts, timing totals and
+  averages, minimax move counts, minimax nodes/cutoffs, minimax depth averages
+  over minimax moves only, and minimax depth/time settings.
+- **Q-learning checkpoint handling:** CLI supports separate
+  `--agent-a-q-path` and `--agent-b-q-path`, so qlearning-vs-qlearning can
+  compare different checkpoints without ambiguity.
+- **Summary output:** reports Agent A/B wins, draws, Agent A win rate over all
+  games, decisive-games win rate, Wilson 95% CI for Agent A wins over all
+  games (draws count as non-wins), average plies, store margin, timing, and
+  minimax nodes.
+- **Phase 6 tests added:** `tests/test_evaluate.py` has 10 tests covering CSV
+  output, seat swapping, winner mapping, Agent A store margin, mixed
+  random/minimax stat fields, Wilson intervals, all-games CI summary,
+  deterministic seeding, Q-learning side-specific paths, fixed-depth CLI
+  parsing, and clear bad-input failures.
+- **Verification:** full suite is 87/87 passing after the experiment-driven
+  relay-cycle regression test. `compileall` and
+  `git diff --check` pass.
+
 ### 2026-04-22 — Phase 5 implemented and verified
 
 - **Q-learning agent added:** `src/agents/qlearning.py` implements
@@ -258,14 +322,16 @@ User approved a four-step cleanup batch before starting Phase 2:
 
 ## 2. Where we are right now
 
-**Phase 1 is complete** (rules engine + 26 passing tests + fact-checked +
+**Phase 1 is complete** (rules engine + 27 passing tests + fact-checked +
 both flagged issues fixed + README written). **Phase 2 is complete and
 playtested** (human/random agents, playable CLI, hardened move validation, and
 14 agent/CLI tests). **Phase 3 is complete** (Connect Four + reusable minimax
 baseline, 17 tests). **Phase 4 is complete** (Ayo H1-H4 heuristics plus
 minimax configuration helpers, 10 tests). **Phase 5 is complete** (tabular
-Q-learning self-play, 9 tests). Next step is Phase 6 design for the evaluation
-harness. See §0 for the blow-by-blow.
+Q-learning self-play, 9 tests). **Phase 6 is complete** (evaluation harness,
+10 tests). The code phases are complete and the first experiment batch has
+been run. Next work is using the CSV outputs for the report. See §0 for the
+blow-by-blow.
 
 ### What exists on disk
 
@@ -285,6 +351,7 @@ ayo-cs152/
 ├── src/
 │   ├── __init__.py
 │   ├── cli.py                    # playable human/random terminal runner
+│   ├── evaluate.py               # tournament harness + CSV metrics
 │   ├── agents/
 │   │   ├── __init__.py
 │   │   ├── base.py               # abstract Agent[StateT, MoveT] ABC
@@ -304,15 +371,15 @@ ayo-cs152/
     ├── __init__.py
     ├── test_agents.py            # 14 passing Phase 2 tests
     ├── test_ayo_heuristics.py    # 10 passing Phase 4 tests
-    ├── test_ayo_rules.py         # 26 passing Ayo rule tests
+    ├── test_ayo_rules.py         # 27 passing Ayo rule tests
     ├── test_connect_four.py      # 9 passing Phase 3 rules tests
+    ├── test_evaluate.py          # 10 passing Phase 6 tests
     ├── test_minimax.py           # 8 passing Phase 3 search tests
     └── test_qlearning.py         # 9 passing Phase 5 tests
 ```
 
 ### What does NOT exist yet (to avoid confusion)
 
-- `src/evaluate.py` — Phase 6.
 - `notebooks/analysis.ipynb` — user will deal with this during analysis phase.
 
 ### How to run things
@@ -322,13 +389,19 @@ ayo-cs152/
 source .venv/bin/activate
 
 # Run tests
-pytest tests/ -q           # currently: 76 passed
+pytest tests/ -q           # currently: 87 passed
 
 # Play a game: human P0 vs. random P1
 python -m src.cli
 
 # Seeded random-vs-random smoke game
 python -m src.cli --p0 random --p1 random --seed 42
+
+# Seeded evaluation tournament with CSV output
+python -m src.evaluate \
+  --agent-a minimax_h4 --agent-b random \
+  --n 20 --seed 42 --out results.csv \
+  --minimax-time none
 
 # Lint (the user hasn't asked for lint-on-commit; run when touching files)
 flake8 src tests           # not installed in the current venv as of 2026-04-21
@@ -413,7 +486,7 @@ Stores have no opposite.
 
 ## 5. Phase 1 test coverage — what's there, what to maybe add
 
-All 26 tests in `tests/test_ayo_rules.py` pass. Coverage hits:
+All 27 tests in `tests/test_ayo_rules.py` pass. Coverage hits:
 
 - initial state + 48-seed invariant
 - immutability + hashing; `q_key()` ignores ply
@@ -432,6 +505,7 @@ All 26 tests in `tests/test_ayo_rules.py` pass. Coverage hits:
 - mover-side-empty → opp collects
 - ply-limit terminal: winner by stores, draw if tied
 - render produces multi-line string and preserves player-relative label order
+- nonterminating relay-cycle moves are excluded from `legal_moves`
 
 ### Suggested additional tests (from the test-trace verifier agent, not yet added)
 
@@ -604,23 +678,34 @@ Recommended training budget for actual experiments:
 - Move to 100k or 200k only if runtime is acceptable and the early evaluation
   curve suggests more training is useful.
 
-### Phase 6 — Evaluation harness
+### Phase 6 — Evaluation harness (complete)
 
 **Goal:** reproducible N-game tournaments between any two agents with
 metrics ready to drop into the report.
 
-- `src/evaluate.py`
-    - CLI: `--p0 minimax --p1 qlearning --n 200 --out results.csv`
-    - Per-game metrics: winner, plies, avg decision time per move per side,
-      minimax nodes visited, store score margin.
-    - Aggregate: win rate, 95% CI on win rate (Wilson interval — numpy
-      only), avg game length.
-- Output: CSV that pandas can read for the notebook.
+**Status:** implemented and tested on 2026-04-22.
 
-Decisions to raise:
-- Should we swap seats halfway (P0 = A for games 1..N/2, P0 = B for games
-  N/2+1..N) to wash out first-move advantage? Standard practice — recommend
-  yes.
+- `src/evaluate.py`
+    - CLI entrypoint: `python -m src.evaluate`
+    - Example args:
+      `--agent-a minimax_h4 --agent-b random --n 200 --out results.csv`
+    - Supported specs: `random`, `qlearning`, `minimax_h1`, `minimax_h2`,
+      `minimax_h3`, `minimax_h4`.
+    - Q-learning checkpoints: use `--agent-a-q-path` and/or
+      `--agent-b-q-path` depending on which logical agent is `qlearning`.
+    - Agents are instantiated fresh per game; random seeds derive from the
+      tournament seed, game index, and seat.
+    - Seat swapping is on by default; disable with `--no-seat-swap`.
+    - Per-game CSV metrics: winner, logical winner, store counts,
+      `store_margin_for_a`, plies, per-seat move counts, timing, minimax move
+      counts, minimax nodes/cutoffs, minimax depth averages, and minimax
+      depth/time settings.
+    - Aggregate stdout summary: Agent A/B wins, draws, all-games and
+      decisive-games Agent A win rates, Wilson 95% CI over all games, average
+      plies, average Agent A store margin, average decision time, and minimax
+      nodes by logical agent.
+- Output: CSV that pandas can read for the notebook.
+- Full Phase 6 coverage currently: 10 tests.
 
 ---
 
@@ -656,13 +741,21 @@ Read `memory/` for the long-form versions. Summary:
 
 ## 9. Exact next action for the incoming agent
 
-Phase 5 is complete. Stop at this phase boundary and ask the user to approve
-moving to Phase 6. Phase 6 should start with a design proposal for
-`src/evaluate.py`: agent construction, seat-swapping, metrics, CSV format,
-minimax/Q-learning stats capture, confidence intervals, and tests. Keep
-`progress.md` updated after each meaningful checkpoint. Update `AI_log.md`
-when the user asks or when agreed as part of the current phase.
+All planned code phases are complete and the first report-oriented experiment
+batch has been run. Next work should be report support:
 
+- use `results/phase6_seed20260422_depth3_final/summary.csv` and per-matchup
+  CSVs for tables/figures;
+- cite `results/phase6_seed20260422_depth3_final/README.md` for the concise
+  interpretation notes;
+- cite `artifacts/qlearning_50k_seed152_metadata.json` for Q-learning training
+  provenance;
+- if time allows, run larger `n` or deeper minimax experiments before making
+  stronger claims about H1-H4 ordering.
+
+Keep `progress.md` updated after each meaningful experiment checkpoint. Update
+`AI_log.md` when the user asks or when agreed as part of the current phase.
+let'
 ---
 
 ## 10. Fact-checker agent reports (context for why the open items exist)

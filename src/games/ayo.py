@@ -85,6 +85,7 @@ class Ayo(Game[AyoState, int]):
             return []
         player = state.to_move
         candidates = self._nonempty_pits(state, self._own_side(player))
+        candidates = self._terminating_moves(state, candidates)
         if not candidates:
             return []
         if not self._side_empty(state, self._opp_side(player)):
@@ -206,7 +207,15 @@ class Ayo(Game[AyoState, int]):
         pits[start] = 0
         relay_origin = start
         pos = start
+        seen = set()
         for _ in range(self._SOW_BUDGET):
+            signature = (tuple(pits), seeds, relay_origin, pos)
+            if signature in seen:
+                raise RuntimeError(
+                    "Relay sowing entered a repeated state; move does not "
+                    f"terminate (start={start}, pits={pits})."
+                )
+            seen.add(signature)
             if seeds == 0:
                 return pos
             pos = (pos + 1) % self.NUM_POSITIONS
@@ -240,8 +249,19 @@ class Ayo(Game[AyoState, int]):
     def _move_delivers(self, state: AyoState, move: int) -> bool:
         """Would this move leave >= 1 seed on opp's side AFTER any capture?"""
         player = state.to_move
-        raw = self._apply_move_raw(state, move)
+        try:
+            raw = self._apply_move_raw(state, move)
+        except RuntimeError:
+            return False
         return not self._side_empty(raw, self._opp_side(player))
+
+    def _move_terminates(self, state: AyoState, move: int) -> bool:
+        """Whether a candidate move completes relay sowing without cycling."""
+        try:
+            self._apply_move_raw(state, move)
+        except RuntimeError:
+            return False
+        return True
 
     def _nonempty_pits(
         self, state: AyoState, side: Iterable[int]
@@ -259,6 +279,12 @@ class Ayo(Game[AyoState, int]):
         has a single source of truth.
         """
         return [m for m in candidates if self._move_delivers(state, m)]
+
+    def _terminating_moves(
+        self, state: AyoState, candidates: Iterable[int]
+    ) -> List[int]:
+        """Filter out relay moves that would never reach an empty final pit."""
+        return [m for m in candidates if self._move_terminates(state, m)]
 
     def _finalize_if_terminal(self, state: AyoState) -> AyoState:
         """Sweep remaining seeds into the right store if the game just ended."""

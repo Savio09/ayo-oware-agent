@@ -1,0 +1,20 @@
+{
+  "checkpoint": "artifacts/qlearning_50k_seed152.pkl",
+  "sha256": "bd481d9ec5e07c076fc59770d3e58d0fb29f597efb94a136118f94f1782b1aea",
+  "episodes": 50000,
+  "training_seed": 152,
+  "agent_seed": 152,
+  "alpha": 0.1,
+  "gamma": 0.99,
+  "epsilon_start": 1.0,
+  "epsilon_min": 0.05,
+  "epsilon_schedule": "linear over episodes",
+  "q_entries": 980812,
+  "p0_wins": 19704,
+  "p1_wins": 28106,
+  "draws": 2190,
+  "avg_plies": 34.11,
+  "total_plies": 1705581,
+  "training_elapsed_s": 184.76,
+  "file_bytes": 47087482
+}

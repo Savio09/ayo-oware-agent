@@ -5,7 +5,8 @@ built for Minerva CS152 (Harnessing AI Algorithms).
 
 The project implements Ayo rules/play, reusable minimax (alpha-beta +
 iterative deepening), Ayo heuristic evaluation, tabular Q-learning via
-self-play, and Connect Four as a validation baseline for the minimax code.
+self-play, a tournament evaluation harness, and Connect Four as a validation
+baseline for the minimax code.
 
 ---
 
@@ -25,12 +26,18 @@ python -m src.cli
 
 # Run a seeded random-vs-random game
 python -m src.cli --p0 random --p1 random --seed 42
+
+# Run a seeded evaluation tournament
+python -m src.evaluate \
+  --agent-a minimax_h4 --agent-b random \
+  --n 20 --seed 42 --out results.csv \
+  --minimax-time none
 ```
 
 The CLI currently supports human and random agents. Minimax is implemented
 and validated on Connect Four, with Ayo heuristics ready for minimax play;
-Q-learning is implemented as a trainable agent, and the evaluation harness
-lands in a later phase.
+Q-learning is implemented as a trainable agent, and `src.evaluate` can run
+seat-swapped tournaments with CSV output.
 
 ---
 
@@ -42,7 +49,7 @@ src/
 ├── agents/     # random, human, minimax, Q-learning
 ├── heuristics/ # Ayo evaluation functions (H1..H4)
 ├── cli.py      # human-vs-agent game runner
-└── evaluate.py # tournament harness + metrics               [coming]
+└── evaluate.py # tournament harness + metrics
 tests/          # pytest rule-correctness + agent tests
 ```
 
@@ -115,11 +122,11 @@ The full rules engine and its test suite live in
 
 | Phase | Description                                  | Status       |
 | ----- | -------------------------------------------- | ------------ |
-| 1     | Ayo rules engine + tests                     | Done (26/26) |
+| 1     | Ayo rules engine + tests                     | Done (27/27) |
 | 2     | CLI + random agent                           | Done (14/14) |
 | 3     | Connect Four + minimax (validation baseline) | Done (17/17) |
 | 4     | Minimax for Ayo with heuristics H1–H4        | Done (10/10) |
 | 5     | Tabular Q-learning via self-play             | Done (9/9)   |
-| 6     | Evaluation harness                           | Pending      |
+| 6     | Evaluation harness                           | Done (10/10) |
 
 See `progress.md` for detailed hand-off notes between sessions.

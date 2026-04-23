@@ -119,6 +119,18 @@ def test_apply_move_rejects_empty_pit(game):
         game.apply_move(s, 0)
 
 
+def test_nonterminating_relay_move_is_not_legal(game):
+    # Found during long Q-learning self-play: pit 3 enters a repeated relay
+    # state and never reaches an empty final pit, so it must not be offered to
+    # agents as a legal move.
+    pits = [5, 0, 1, 4, 0, 1] + [12] + [2, 3, 1, 4, 0, 4] + [11]
+    s = make_state(pits, to_move=0, ply=10)
+
+    assert game.legal_moves(s) == [0, 2, 5]
+    with pytest.raises(ValueError, match="not legal"):
+        game.apply_move(s, 3)
+
+
 # ---------------------------------------------------------------------------
 # Basic sowing (no relay, no capture)
 # ---------------------------------------------------------------------------
