@@ -4,3 +4,17 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 artifacts/*.pkl
+AI_log.md
+progress.md
+instruction.md
+AI Final Project.pdf
+CS152_ Final Assignment.pdf
+HC Handbook.pdf
+cs152-syllabus.pdf
+awari.pdf
+ayo_cs152_code_submission.zip
+report/*.aux
+report/*.log
+report/*.out
+report/*.synctex.gz
+report/*.toc
