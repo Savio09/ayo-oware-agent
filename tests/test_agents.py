@@ -17,6 +17,8 @@ import pytest
 
 import src.cli as cli
 from src.agents.human import AyoHumanAgent
+from src.agents.minimax import MinimaxAgent
+from src.agents.qlearning import QLearningAgent
 from src.agents.random_agent import RandomAgent
 from src.cli import play_game
 from src.games.ayo import Ayo, AyoState
@@ -214,3 +216,64 @@ def test_main_wires_argparse_agent_factories_and_seed(monkeypatch):
     expected = RandomAgent(seed=123).select_move(captured["game"], state)
     observed = captured["agents"][1].select_move(captured["game"], state)
     assert observed == expected
+
+
+def test_main_builds_minimax_agent_with_cli_settings(monkeypatch):
+    captured = {}
+
+    def fake_play_game(game, agents):
+        captured["game"] = game
+        captured["agents"] = agents
+        return game.initial_state()
+
+    monkeypatch.setattr(cli, "play_game", fake_play_game)
+    cli.main(
+        [
+            "--p0",
+            "minimax",
+            "--p1",
+            "random",
+            "--minimax-depth",
+            "3",
+            "--minimax-time",
+            "none",
+        ]
+    )
+
+    assert isinstance(captured["agents"][0], MinimaxAgent)
+    assert captured["agents"][0].max_depth == 3
+    assert captured["agents"][0].time_limit_s is None
+    assert isinstance(captured["agents"][1], RandomAgent)
+
+
+def test_main_builds_qlearning_agent_from_checkpoint(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_play_game(game, agents):
+        captured["game"] = game
+        captured["agents"] = agents
+        return game.initial_state()
+
+    q_path = tmp_path / "q_agent.pkl"
+    q_agent = QLearningAgent(alpha=0.2, gamma=0.7)
+    initial_state = Ayo().initial_state()
+    q_agent.q_values[(initial_state.q_key(), 2)] = 1.5
+    q_agent.save(q_path)
+
+    monkeypatch.setattr(cli, "play_game", fake_play_game)
+    cli.main(
+        [
+            "--p0",
+            "human",
+            "--p1",
+            "qlearning",
+            "--q-path",
+            str(q_path),
+        ]
+    )
+
+    assert isinstance(captured["agents"][0], AyoHumanAgent)
+    assert isinstance(captured["agents"][1], QLearningAgent)
+    assert captured["agents"][1].alpha == 0.2
+    assert captured["agents"][1].gamma == 0.7
+    assert captured["agents"][1].q_value(initial_state, 2) == 1.5

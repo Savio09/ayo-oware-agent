@@ -5,6 +5,12 @@ Examples::
     # Human (P0) vs. random (P1)
     python -m src.cli
 
+    # Human vs. minimax (default H4 heuristic)
+    python -m src.cli --p0 human --p1 minimax --minimax-time none
+
+    # Human vs. Q-learning checkpoint
+    python -m src.cli --p0 human --p1 qlearning
+
     # Random vs. random, seeded for reproducibility
     python -m src.cli --p0 random --p1 random --seed 42
 
@@ -14,26 +20,70 @@ Examples::
 from __future__ import annotations
 
 import argparse
-from typing import Callable, Dict, Optional
+from pathlib import Path
+from typing import Dict, Optional
 
 from src.agents.base import Agent
 from src.agents.human import AyoHumanAgent
+from src.agents.minimax import MinimaxAgent
+from src.agents.qlearning import QLearningAgent
 from src.agents.random_agent import RandomAgent
 from src.games.ayo import Ayo, AyoState
+from src.heuristics.ayo_heuristics import (
+    ayo_h1,
+    ayo_h2,
+    ayo_h3,
+    ayo_h4,
+    ayo_immediate_gain_move_order,
+)
 
-AGENT_FACTORIES: Dict[str, Callable[[Optional[int]], Agent]] = {
-    "human": lambda _seed: AyoHumanAgent(),
-    "random": lambda seed: RandomAgent(seed=seed),
+DEFAULT_Q_PATH = (
+    Path(__file__).resolve().parents[1] / "artifacts" / "qlearning_50k_seed152.pkl"
+)
+
+MINIMAX_HEURISTICS = {
+    "minimax": ayo_h4,
+    "minimax_h1": ayo_h1,
+    "minimax_h2": ayo_h2,
+    "minimax_h3": ayo_h3,
+    "minimax_h4": ayo_h4,
 }
+AGENT_NAMES = ("human", "random", "qlearning", *MINIMAX_HEURISTICS.keys())
 
 
-def build_agent(name: str, seed: Optional[int]) -> Agent:
-    try:
-        return AGENT_FACTORIES[name](seed)
-    except KeyError as exc:
-        raise ValueError(
-            f"Unknown agent {name!r}. Choices: {sorted(AGENT_FACTORIES)}."
-        ) from exc
+def build_agent(
+    name: str,
+    seed: Optional[int],
+    q_path: Path,
+    minimax_depth: int,
+    minimax_time_limit_s: Optional[float],
+) -> Agent:
+    if name == "human":
+        return AyoHumanAgent()
+    if name == "random":
+        return RandomAgent(seed=seed)
+    if name == "qlearning":
+        return QLearningAgent.load(q_path, seed=seed)
+    if name in MINIMAX_HEURISTICS:
+        return MinimaxAgent(
+            heuristic=MINIMAX_HEURISTICS[name],
+            max_depth=minimax_depth,
+            time_limit_s=minimax_time_limit_s,
+            use_alpha_beta=True,
+            use_transposition_table=False,
+            move_order=ayo_immediate_gain_move_order,
+        )
+    raise ValueError(f"Unknown agent {name!r}. Choices: {sorted(AGENT_NAMES)}.")
+
+
+def parse_minimax_time(value: str) -> Optional[float]:
+    """Parse a positive seconds budget, or ``none`` for fixed-depth search."""
+    if value.lower() in {"none", "null", "off", "0"}:
+        return None
+    parsed = float(value)
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("minimax time must be positive or 'none'.")
+    return parsed
 
 
 def play_game(
@@ -81,19 +131,42 @@ def main(argv: Optional[list] = None) -> None:
         prog="python -m src.cli",
         description="Play Ayo at the terminal.",
     )
-    ap.add_argument("--p0", default="human", choices=sorted(AGENT_FACTORIES))
-    ap.add_argument("--p1", default="random", choices=sorted(AGENT_FACTORIES))
+    ap.add_argument("--p0", default="human", choices=sorted(AGENT_NAMES))
+    ap.add_argument("--p1", default="random", choices=sorted(AGENT_NAMES))
     ap.add_argument(
         "--seed",
         type=int,
         default=None,
-        help="RNG seed for random agents (ignored by human).",
+        help="RNG seed for random agents and deterministic tie-breaking.",
     )
+    ap.add_argument(
+        "--q-path",
+        type=Path,
+        default=DEFAULT_Q_PATH,
+        help=(
+            "Path to a Q-learning checkpoint pickle. Used whenever either side "
+            "is qlearning."
+        ),
+    )
+    ap.add_argument("--minimax-depth", type=int, default=4)
+    ap.add_argument("--minimax-time", type=parse_minimax_time, default=1.0)
     args = ap.parse_args(argv)
     game = Ayo()
     agents = {
-        0: build_agent(args.p0, args.seed),
-        1: build_agent(args.p1, args.seed),
+        0: build_agent(
+            args.p0,
+            args.seed,
+            args.q_path,
+            args.minimax_depth,
+            args.minimax_time,
+        ),
+        1: build_agent(
+            args.p1,
+            args.seed,
+            args.q_path,
+            args.minimax_depth,
+            args.minimax_time,
+        ),
     }
     play_game(game, agents)
 

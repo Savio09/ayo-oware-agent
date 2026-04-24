@@ -14,8 +14,17 @@ Seeded, seat-swapped Ayo tournaments for report inputs.
 - Q training: 50,000 self-play episodes, seed `152`, alpha `0.1`,
   gamma `0.99`, epsilon linearly decayed from `1.0` to `0.05`
 - Q entries: `980812`
+- Intra-move relay-cycle policy: nonterminating relay moves are illegal and
+  filtered from `legal_moves()`
+- Inter-move repeated-position policy: none; the 200-ply safety valve is the
+  only inter-move cycle safeguard
+- The Q checkpoint and this evaluation batch were generated after the
+  intra-move relay-cycle policy was implemented.
 
 ## Summary
+
+Report-ready tables grouped by comparison category are available in
+`report_tables.md`.
 
 | Matchup | Agent A wins | Agent B wins | Draws | Agent A win rate | Avg margin for A | Avg plies |
 |---|---:|---:|---:|---:|---:|---:|
